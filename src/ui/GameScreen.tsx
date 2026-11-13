@@ -56,16 +56,21 @@ export default function GameScreen({ meta, settings, pushToast, onExit }: Props)
     let cancelled = false;
     (async () => {
       const canvas = canvasRef.current!;
-      // integer scaling
+      // Integer-scale the canvas to fill as much of the phone screen as possible.
+      // The wrap is sized to the scaled canvas height so nothing is ever clipped.
       const fit = () => {
-        const wrap = canvas.parentElement!;
-        const w = wrap.clientWidth, h = wrap.clientHeight;
-        const scale = Math.max(1, Math.floor(Math.min(w / VIEW_W, h / VIEW_H)));
+        const wrap = canvas.parentElement as HTMLElement;
+        const shell = (wrap.parentElement as HTMLElement) || document.body;
+        const availW = shell.clientWidth || window.innerWidth || VIEW_W;
+        const availH = Math.max(VIEW_H, (shell.clientHeight || window.innerHeight || VIEW_H) * 0.62);
+        const scale = Math.max(1, Math.floor(Math.min(availW / VIEW_W, availH / VIEW_H)));
         canvas.style.width = `${VIEW_W * scale}px`;
         canvas.style.height = `${VIEW_H * scale}px`;
+        wrap.style.flex = `0 0 ${VIEW_H * scale}px`;
       };
       fit();
       window.addEventListener('resize', fit);
+      window.addEventListener('orientationchange', fit);
       const game = new Game(canvas, meta, {
         onEvent: (e) => {
           if (cancelled) return;
@@ -93,12 +98,9 @@ export default function GameScreen({ meta, settings, pushToast, onExit }: Props)
       });
       game.quality = settingsRef.current.quality;
       gameRef.current = game;
-      (window as any).__game = game; // automation/testing hook (not visible to players)
-      // load existing save or initialize new world
       const save = await dbGet<WorldSave>(`world_${meta.id}`);
       if (save && save.player) {
         game.load(save);
-        // welcome back summary
         const awayMs = Date.now() - (save.lastSavedAt || Date.now());
         if (awayMs > 86400000) {
           pushToast(`Welcome back! You were away ${Math.floor(awayMs / 86400000)}d.`);
@@ -117,7 +119,7 @@ export default function GameScreen({ meta, settings, pushToast, onExit }: Props)
         if (meta.settings.type === 'frozen') game.award('frozen');
       }
       if (save && save.player) game.startPlay();
-      // input: keyboard fallback
+      fit();
       const keymap: Record<string, string> = {
         w: 'up', arrowup: 'up', s: 'down', arrowdown: 'down', a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right',
         j: 'a', k: 'b', l: 'x', i: 'y', escape: 'start', ' ': 'a', enter: 'y',
@@ -149,7 +151,6 @@ export default function GameScreen({ meta, settings, pushToast, onExit }: Props)
       };
       window.addEventListener('keydown', kd);
       window.addEventListener('keyup', ku);
-      // loop
       const loop = new GameLoop(
         (dt) => {
           const g = gameRef.current;
@@ -166,12 +167,12 @@ export default function GameScreen({ meta, settings, pushToast, onExit }: Props)
       );
       loopRef.current = loop;
       loop.start();
-      // autosave on hide/blur/pause
       const saveOnHide = () => { if (document.hidden) gameRef.current?.saveNow(); };
       document.addEventListener('visibilitychange', saveOnHide);
       window.addEventListener('pagehide', saveOnHide);
       (canvas as any).__cleanup = () => {
         window.removeEventListener('resize', fit);
+        window.removeEventListener('orientationchange', fit);
         window.removeEventListener('keydown', kd);
         window.removeEventListener('keyup', ku);
         document.removeEventListener('visibilitychange', saveOnHide);
