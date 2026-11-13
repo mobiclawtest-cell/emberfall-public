@@ -1,0 +1,24 @@
+{
+  "name": "emberfall-chronicles",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Retro 16-bit top-down action-RPG for mobile portrait. Infinite procedural worlds, procedural enemies, full story.",
+  "scripts": {
+    "dev": "vite --host",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
