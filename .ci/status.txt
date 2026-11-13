@@ -1,10 +1,29 @@
-Source missing - importing...
-trying https://n.uguu.se/kLuqrpol.tar.gz
-downloaded 109010 bytes
-extracted OK
-copied index.html
-copied tsconfig.json
-copied vite.config.ts
-copied README.md
-copied src (40 files)
-import complete
+Source already present - skipping import.
+--- pages diagnostics ---
+GET /pages:
+{
+  "message": "Not Found",
+  "documentation_url": "https://docs.github.com/rest/pages/pages#get-a-apiname-pages-site",
+  "status": "404"
+}
+
+HTTP 404
+POST /pages:
+{
+  "message": "Resource not accessible by integration",
+  "documentation_url": "https://docs.github.com/rest/pages/pages#create-a-apiname-pages-site",
+  "status": "403"
+}
+
+HTTP 403
+PUT /pages:
+{
+  "message": "Resource not accessible by integration",
+  "documentation_url": "https://docs.github.com/rest/pages/pages#update-information-about-a-apiname-pages-site",
+  "status": "403"
+}
+
+HTTP 403
+--- outcomes ---
+import=success node=success install=success tc=success build=success pages=failure enable=success upload=skipped
+dist contents: assets index.html 
