@@ -1,4 +1,4 @@
-name: Build & Deploy to GitHub Pages
+name: Build & Deploy
 
 on:
   push:
@@ -83,32 +83,50 @@ jobs:
         id: build
         run: npx vite build
 
-      - name: Configure Pages
-        id: pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - name: Pages API diagnostics and explicit enable
-        id: enable
+      - name: Publish build to gh-pages branch
+        id: publish
         if: always()
         run: |
           set +e
           mkdir -p .ci
+          if [ ! -d dist ]; then echo "publish: no dist directory" >> .ci/status.txt; exit 0; fi
+          touch dist/.nojekyll
+          cd dist
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publish site build" || true
+          git push -f -q "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages
+          echo "publish: exit=$?" >> ../.ci/status.txt
+
+      - name: Configure Pages
+        id: pages
+        continue-on-error: true
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Pages API diagnostics
+        id: enable
+        if: always()
+        run: |
+          set +e
           R="${{ github.repository }}"
           T="${{ secrets.GITHUB_TOKEN }}"
           {
             echo "--- pages diagnostics ---"
             echo "GET /pages:"
-            curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$R/pages"
+            curl -s -w " HTTP %{http_code}\n" -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$R/pages"
             echo "POST /pages:"
-            curl -s -w "\nHTTP %{http_code}\n" -X POST -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" -d '{"build_type":"workflow"}' "https://api.github.com/repos/$R/pages"
-            echo "PUT /pages:"
-            curl -s -w "\nHTTP %{http_code}\n" -X PUT -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" -d '{"build_type":"workflow"}' "https://api.github.com/repos/$R/pages"
+            curl -s -w " HTTP %{http_code}\n" -X POST -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" -d '{"build_type":"workflow"}' "https://api.github.com/repos/$R/pages"
           } >> .ci/status.txt 2>&1
 
       - name: Upload Pages artifact
         id: up
+        if: always()
+        continue-on-error: true
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -119,8 +137,8 @@ jobs:
           mkdir -p .ci
           {
             echo "--- outcomes ---"
-            echo "import=${{ steps.import.outcome }} node=${{ steps.node.outcome }} install=${{ steps.install.outcome }} tc=${{ steps.tc.outcome }} build=${{ steps.build.outcome }} pages=${{ steps.pages.outcome }} enable=${{ steps.enable.outcome }} upload=${{ steps.up.outcome }}"
-            echo "dist contents: $(ls dist 2>/dev/null | tr '\n' ' ')"
+            echo "import=${{ steps.import.outcome }} node=${{ steps.node.outcome }} install=${{ steps.install.outcome }} tc=${{ steps.tc.outcome }} build=${{ steps.build.outcome }} publish=${{ steps.publish.outcome }} pages=${{ steps.pages.outcome }} upload=${{ steps.up.outcome }}"
+            echo "dist: $(ls dist 2>/dev/null | tr '\n' ' ')"
           } >> .ci/status.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -136,10 +154,12 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    continue-on-error: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
         uses: actions/deploy-pages@v4
